@@ -94,7 +94,7 @@ Result: first 8 bytes as 16 hex chars
 
 The server uses the Authorization Hash to resolve the Account/Profile, then routes the message to the device identified by the SERIAL field in the frame header.
 
-> **Note:** TagoTiP/S uses additional credentials (Device Hash, Encryption Key) for the crypto envelope. See [TagoTiPs.md](TagoTiPs.md). For transport-specific bindings (HTTP, MQTT), see [TagoTipServers.md](TagoTipServers.md).
+> **Note:** TagoTiP/S uses additional credentials (Device Hash, Encryption Key) for the crypto envelope. See [TagoTiPs.md](TagoTiPs.md).
 
 ---
 
@@ -114,8 +114,6 @@ The `\n` byte (0x0A) MUST NOT appear inside frame field values. On stream transp
 > **Normative clarification:** The ABNF grammar defines frames with a trailing `LF` for the canonical wire format. On message-boundary transports (UDP, MQTT, HTTP body), the trailing `LF` is OPTIONAL — receivers on these transports MUST accept frames both with and without a trailing `LF`. On stream transports (TCP), the trailing `LF` is REQUIRED as the frame delimiter.
 
 **CMD Delivery (Non-Normative):** On connection-oriented transports (TCP), the server MAY send CMD frames at any time. On pub/sub transports (MQTT), the server MAY publish to device-specific topics. On request-response transports (HTTP, UDP), CMD frames are delivered as responses to client requests — clients SHOULD use periodic PING to poll for pending commands.
-
-> **Note:** For transport-specific bindings that map TagoTiP methods, authentication, and device identity to native transport features, see [TagoTipServers.md](TagoTipServers.md).
 
 ---
 
