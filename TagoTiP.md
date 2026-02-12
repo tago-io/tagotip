@@ -39,7 +39,7 @@ block-beta
   columns 5
   METHOD["METHOD\n4-6B"]:1
   N["!N\n(opt.)"]:1
-  AUTH["AUTH\n34 bytes"]:1
+  AUTH["AUTH\n16 hex"]:1
   SERIAL["SERIAL\ndevice serial"]:1
   BODY["BODY\ncontent"]:1
 ```
@@ -80,11 +80,21 @@ Credentials are scoped to an **Account/Profile** (not to an individual device). 
 
 | Credential | Format | Secrecy | Purpose |
 |---|---|---|---|
-| **Authorization Token** | `at` + 32 hex chars (34 chars total, e.g., `ate2bd319014b24e0a8aca9f00aea4c0d0`) | Secret | Identifies the Account/Profile. Sent in plaintext in TagoTiP frames. |
+| **Authorization Token** | `at` + 32 hex chars (34 chars total, e.g., `ate2bd319014b24e0a8aca9f00aea4c0d0`) | Secret | Identifies the Account/Profile. Used only to derive the Authorization Hash during device provisioning. Never transmitted on the wire. |
+| **Authorization Hash** | 16 hex chars (8 bytes, e.g., `4deedd7bab8817ec`) | Public | Derived from the Authorization Token. Sent in TagoTiP frames to identify the Account/Profile. Safe to display in logs/UIs. |
 
-The server uses the Authorization Token to resolve the Account/Profile, then routes the message to the device identified by the SERIAL field in the frame header.
+**Authorization Hash derivation:**
 
-> **Note:** TagoTiP/S uses additional credentials (Authorization Hash, Device Hash, Encryption Key) for the crypto envelope. See [TagoTiPs.md](TagoTiPs.md).
+```
+Token:  ate2bd319014b24e0a8aca9f00aea4c0d0
+Input:  e2bd319014b24e0a8aca9f00aea4c0d0     (strip "at" prefix)
+Hash:   SHA-256 of input (UTF-8 bytes)
+Result: first 8 bytes as 16 hex chars
+```
+
+The server uses the Authorization Hash to resolve the Account/Profile, then routes the message to the device identified by the SERIAL field in the frame header.
+
+> **Note:** TagoTiP/S uses additional credentials (Device Hash, Encryption Key) for the crypto envelope. See [TagoTiPs.md](TagoTiPs.md). For transport-specific bindings (HTTP, MQTT), see [TagoTipServers.md](TagoTipServers.md).
 
 ---
 
@@ -104,6 +114,8 @@ The `\n` byte (0x0A) MUST NOT appear inside frame field values. On stream transp
 > **Normative clarification:** The ABNF grammar defines frames with a trailing `LF` for the canonical wire format. On message-boundary transports (UDP, MQTT, HTTP body), the trailing `LF` is OPTIONAL — receivers on these transports MUST accept frames both with and without a trailing `LF`. On stream transports (TCP), the trailing `LF` is REQUIRED as the frame delimiter.
 
 **CMD Delivery (Non-Normative):** On connection-oriented transports (TCP), the server MAY send CMD frames at any time. On pub/sub transports (MQTT), the server MAY publish to device-specific topics. On request-response transports (HTTP, UDP), CMD frames are delivered as responses to client requests — clients SHOULD use periodic PING to poll for pending commands.
+
+> **Note:** For transport-specific bindings that map TagoTiP methods, authentication, and device identity to native transport features, see [TagoTipServers.md](TagoTipServers.md).
 
 ---
 
@@ -135,20 +147,20 @@ METHOD|!N|AUTH|SERIAL\n         ← PING (no body)
 |---|---|---|
 | `METHOD` | Yes | The action to perform (see §5) |
 | `!N` | No | Sequence counter — `!` prefix + decimal integer (e.g., `!42`) |
-| `AUTH` | Yes | Authorization Token (34 chars: `at` + 32 hex) |
+| `AUTH` | Yes | Authorization Hash (16 hex chars, 8 bytes of SHA-256) |
 | `SERIAL` | Yes | Device serial number (target device identifier) |
 | `BODY` | Depends | Method-specific payload (see §6–§8). Omitted for PING. |
 
 - Fields are separated by the pipe character `|` (byte `0x7C`)
-- The `!` prefix distinguishes the optional counter field from the AUTH field (Authorization Tokens always start with `at`, never `!`)
+- The `!` prefix distinguishes the optional counter field from the AUTH field (hex characters `0-9`, `a-f` never start with `!`)
 
 **Examples:**
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32]
-PUSH|!42|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32]
-PING|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01
-PING|!5|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01
+PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32]
+PUSH|!42|4deedd7bab8817ec|sensor-01|[temperature:=32]
+PING|4deedd7bab8817ec|sensor-01
+PING|!5|4deedd7bab8817ec|sensor-01
 ```
 
 ### 4.2 Downlink Frames (Server → Client)
@@ -174,10 +186,10 @@ See §9 for the full ACK specification including status codes for responses and 
 
 ### 4.3 Authentication
 
-The **Authorization Token** identifies the **Account/Profile**. The **SERIAL** field identifies the target device.
+The **Authorization Hash** identifies the **Account/Profile**. The **SERIAL** field identifies the target device.
 
 The server MUST:
-1. Resolve the Account/Profile by Authorization Token.
+1. Resolve the Account/Profile by Authorization Hash.
 2. Verify that the `SERIAL` belongs to that Account/Profile.
 3. Reject the request if the `SERIAL` does not belong to the profile (`ACK|ERR|device_not_found`).
 
@@ -374,7 +386,7 @@ temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
 Body-level modifiers cascade to all variables in the body:
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|^batch_42@1694567890000{firmware=2.1}[temp:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000{firmware=2.1}[temp:=32#C;humidity:=65#%]
 ```
 
 Both `temp` and `humidity` inherit:
@@ -385,7 +397,7 @@ Both `temp` and `humidity` inherit:
 Variable-level modifiers **override** body-level:
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|@1694567890000[temp:=32@1694567891000;humidity:=65]
+PUSH|4deedd7bab8817ec|sensor-01|@1694567890000[temp:=32@1694567891000;humidity:=65]
 ```
 
 Here `temp` uses its own timestamp `1694567891000`, while `humidity` uses the body-level `1694567890000`.
@@ -393,7 +405,7 @@ Here `temp` uses its own timestamp `1694567891000`, while `humidity` uses the bo
 For metadata, variable-level **merges** with body-level (variable wins on key conflicts):
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|{firmware=2.1}[temp:=32{source=dht22};humidity:=65]
+PUSH|4deedd7bab8817ec|sensor-01|{firmware=2.1}[temp:=32{source=dht22};humidity:=65]
 ```
 
 - `temp` has metadata: `{firmware: "2.1", source: "dht22"}`
@@ -418,8 +430,8 @@ Passthrough mode (`>x`, `>b`) is **uplink-only**.
 The payload parser receives the raw data and can process it however needed. If the decoded data happens to be a TagoTiP frame (e.g., a device that encodes TagoTiP text as hex), a TagoTiP parser helper function is available in the payload parser environment to convert it to structured JSON objects.
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|>xDEADBEEF01020304
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|>b3q2+7wECAwQ=
+PUSH|4deedd7bab8817ec|sensor-01|>xDEADBEEF01020304
+PUSH|4deedd7bab8817ec|sensor-01|>b3q2+7wECAwQ=
 ```
 
 The effective maximum passthrough data size depends on the frame budget remaining after method, auth, serial, and `>x`/`>b` prefix fields.
@@ -451,10 +463,10 @@ The server does not echo the serial in ACK responses (see §9).
 Examples:
 
 ```
-→ PULL|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature]
+→ PULL|4deedd7bab8817ec|weather-denver|[temperature]
 ← ACK|OK|[temperature:=32#F@1694567890000]
 
-→ PULL|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature;humidity;pressure]
+→ PULL|4deedd7bab8817ec|weather-denver|[temperature;humidity;pressure]
 ← ACK|OK|[temperature:=32#F@1694567890000;humidity:=65#%@1694567890000]
 ```
 
@@ -514,7 +526,7 @@ When `!N` is present, it appears between `ACK` and `STATUS` (e.g., `ACK|!1|OK|3`
 
 | Detail | Meaning |
 |---|---|
-| `invalid_token` | Authorization Token is missing, expired, or invalid |
+| `invalid_token` | Authorization Hash is missing, expired, or invalid |
 | `invalid_method` | Unknown method |
 | `invalid_payload` | Malformed body / parse error |
 | `invalid_seq` | Sequence counter is not greater than last accepted value |
@@ -609,8 +621,8 @@ When the uplink frame includes a sequence counter, the server echoes it in the A
 In TagoTiP, the sequence counter is included in the frame header with a `!` prefix followed by the decimal integer:
 
 ```
-PUSH|!42|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32]
-PING|!5|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01
+PUSH|!42|4deedd7bab8817ec|sensor-01|[temperature:=32]
+PING|!5|4deedd7bab8817ec|sensor-01
 ```
 
 ---
@@ -620,112 +632,112 @@ PING|!5|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01
 ### 11.1 Simple Push
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature:=32;humidity:=65]
+PUSH|4deedd7bab8817ec|weather-denver|[temperature:=32;humidity:=65]
 ```
 
 ### 11.2 Push with Sequence Counter
 
 ```
-PUSH|!1|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature:=32;humidity:=65]
+PUSH|!1|4deedd7bab8817ec|weather-denver|[temperature:=32;humidity:=65]
 ```
 
 ### 11.3 Typed Values
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-0A1F|[temperature:=32.5#C;status=online;active?=true]
+PUSH|4deedd7bab8817ec|sensor-0A1F|[temperature:=32.5#C;status=online;active?=true]
 ```
 
 Negative number example:
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-0A1F|[temperature:=-15.3#C]
+PUSH|4deedd7bab8817ec|sensor-0A1F|[temperature:=-15.3#C]
 ```
 
 ### 11.4 With Location and Altitude
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|drone-07|[altitude:=305#m;position@=39.74,-104.99,305]
+PUSH|4deedd7bab8817ec|drone-07|[altitude:=305#m;position@=39.74,-104.99,305]
 ```
 
 ### 11.5 With Metadata
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32{source=dht22,quality=high}]
+PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32{source=dht22,quality=high}]
 ```
 
 ### 11.6 Body-Level Defaults
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|^batch_42@1694567890000{firmware=2.1}[temperature:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000{firmware=2.1}[temperature:=32#C;humidity:=65#%]
 ```
 
 ### 11.7 Variable-Level Timestamps (Datalogger)
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|datalogger-7|[temp:=32@1694567890000;temp:=33@1694567900000;temp:=31@1694567910000]
+PUSH|4deedd7bab8817ec|datalogger-7|[temp:=32@1694567890000;temp:=33@1694567900000;temp:=31@1694567910000]
 ```
 
 ### 11.8 Passthrough (Hex)
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|>xDEADBEEF01020304
+PUSH|4deedd7bab8817ec|sensor-01|>xDEADBEEF01020304
 ```
 
 ### 11.9 Passthrough (Base64)
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|>b3q2+7wECAwQ=
+PUSH|4deedd7bab8817ec|sensor-01|>b3q2+7wECAwQ=
 ```
 
 ### 11.10 Retrieve Last Value
 
 ```
-PULL|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature]
+PULL|4deedd7bab8817ec|weather-denver|[temperature]
 ```
 
 ### 11.11 Retrieve Last Value with Sequence Counter
 
 ```
-PULL|!7|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature]
+PULL|!7|4deedd7bab8817ec|weather-denver|[temperature]
 ```
 
 ### 11.12 Keepalive
 
 ```
-PING|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01
+PING|4deedd7bab8817ec|sensor-01
 ```
 
 ### 11.13 Full Conversation Flow
 
 ```
-→ PING|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver
+→ PING|4deedd7bab8817ec|weather-denver
 ← ACK|PONG
 
-→ PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature:=32#F;humidity:=65#%;active?=true]
+→ PUSH|4deedd7bab8817ec|weather-denver|[temperature:=32#F;humidity:=65#%;active?=true]
 ← ACK|OK|3
 
-→ PULL|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature]
+→ PULL|4deedd7bab8817ec|weather-denver|[temperature]
 ← ACK|OK|[temperature:=32#F@1694567890000]
 
 ← ACK|CMD|reboot
 
-→ PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[invalid=broken
+→ PUSH|4deedd7bab8817ec|weather-denver|[invalid=broken
 ← ACK|ERR|invalid_payload
 ```
 
 ### 11.14 Conversation with Sequence Counter
 
 ```
-→ PING|!1|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver
+→ PING|!1|4deedd7bab8817ec|weather-denver
 ← ACK|!1|PONG
 
-→ PUSH|!2|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[temperature:=32#F]
+→ PUSH|!2|4deedd7bab8817ec|weather-denver|[temperature:=32#F]
 ← ACK|!2|OK|1
 
-→ PUSH|!3|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[humidity:=65#%]
+→ PUSH|!3|4deedd7bab8817ec|weather-denver|[humidity:=65#%]
 ← ACK|!3|OK|1
 
-→ PUSH|!2|ate2bd319014b24e0a8aca9f00aea4c0d0|weather-denver|[pressure:=1013#hPa]
+→ PUSH|!2|4deedd7bab8817ec|weather-denver|[pressure:=1013#hPa]
 ← ACK|!2|ERR|invalid_seq
 ```
 
@@ -803,10 +815,10 @@ The same data point expressed across formats:
 }
 ```
 
-**TagoTiP (~130 bytes):**
+**TagoTiP (~112 bytes):**
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
 ```
 
 **TagoTiP/S (~115 bytes):**
@@ -814,17 +826,17 @@ PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|^batch_42@1694567890000[temper
 ```
 Headless inner frame (90 bytes):
   sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
-  (removed "PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|" = 40 bytes)
+  (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
 Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 4 (device hash) + 90 (ciphertext) + 8 (auth tag) = 115 bytes
 ```
 
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | — |
-| TagoTiP | ~130 bytes | ~3.7× smaller |
+| TagoTiP | ~112 bytes | ~4.3× smaller |
 | TagoTiP/S | ~115 bytes | ~4.2× smaller |
 
-TagoTiP sizes exclude transport-layer overhead (TCP/IP headers). The HTTP/JSON body alone is ~180 bytes; the ~487 figure includes typical HTTP request headers.
+TagoTiP sizes exclude transport-layer overhead (TCP/IP headers). The HTTP/JSON body alone is ~180 bytes; the ~487 figure includes typical HTTP request headers. TagoTiP/S adds encryption overhead (25-33 bytes depending on cipher suite) but removes the method and auth hash fields from the inner frame.
 
 ---
 
@@ -846,7 +858,7 @@ ping-frame      = "PING" "|" [seq "|"] auth "|" serial LF
 seq             = "!" counter-value                     ; Optional sequence counter
 counter-value   = "0" / (%x31-39 *DIGIT)               ; No leading zeros
 
-auth            = "at" 32HEXDIG                         ; Authorization Token
+auth            = 16HEXDIG                               ; Authorization Hash (8 bytes as hex)
 
 serial          = 1*100SERIALCHAR                        ; Device serial number (max 100 bytes)
 
@@ -951,9 +963,9 @@ BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
 
 ## 16. Security Considerations
 
-- Authorization Tokens SHOULD be transmitted over TLS or equivalent transport-level encryption in production environments
+- The Authorization Hash is a truncated SHA-256 of the token; it does not expose the original token. However, TLS or equivalent transport-level encryption is RECOMMENDED in production environments
 - Authorization Tokens SHOULD NOT be hardcoded in source code shared publicly
-- The server MUST validate the Authorization Token and match it against the Device Serial Number before processing any message
+- The server MUST validate the Authorization Hash and match it against the Device Serial Number before processing any message
 - The optional sequence counter provides replay protection but does NOT provide confidentiality
 
 > For encryption-based security without TLS, see [TagoTiPs.md](TagoTiPs.md) (TagoTiP/S).

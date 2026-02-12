@@ -26,14 +26,16 @@ A lightweight, human-readable protocol for sending and receiving IoT data to [Ta
 ## Quick Example
 
 ```
-PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32.5#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32.5#C;humidity:=65#%]
 ```
+
+Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 of the device token (without the `at` prefix).
 
 ## Key Features
 
 - **Human-readable** -- frames can be read and composed in a terminal
 - **Type-safe** -- explicit operators for numbers (`:=`), strings (`=`), booleans (`?=`), and locations (`@=`)
-- **Compact** -- ~3.7x smaller than equivalent HTTP/JSON
+- **Compact** -- ~4.3x smaller than equivalent HTTP/JSON
 - **Transport-agnostic** -- works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
 - **C-friendly** -- linear parsing, predictable buffer sizes, minimal string handling
 - **Complete** -- supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
@@ -42,8 +44,9 @@ PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|[temperature:=32.5#C;humidity:
 
 | Document | Description |
 |---|---|
-| [TagoTiP.md](TagoTiP.md) | Full protocol specification (v1.0 Draft, Revision B) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
+| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0 Draft, Revision B) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
 | [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0 Draft, Revision C) -- AEAD encrypted envelope for links without TLS |
+| [TagoTipServers.md](TagoTipServers.md) | Transport bindings -- HTTP, MQTT, and Raw (UDP/TCP) mappings |
 
 ## Protocol Overview
 
@@ -121,12 +124,22 @@ TagoTiP/S wraps TagoTiP data in a binary AEAD-encrypted envelope for links where
 
 Total overhead: 25 bytes (CCM) or 33 bytes (GCM / ChaCha20-Poly1305).
 
+## Transport Bindings
+
+TagoTiP can be carried over any transport. [TagoTipServers.md](TagoTipServers.md) defines how to map TagoTiP to transport-native features:
+
+| Binding | Method | Auth | Device ID | Overhead |
+|---|---|---|---|---|
+| **Raw** (UDP/TCP) | In frame | In frame | In frame | Full frame |
+| **HTTP** | HTTP method | `Authorization` header | URL path | Body only |
+| **MQTT** | Topic suffix (`/push`, `/pull`) | CONNECT credentials | `$tip/{serial}/...` topic | Body only |
+
 ## Size Comparison
 
 | Format | Size | Ratio |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | -- |
-| TagoTiP | ~130 bytes | 3.7x smaller |
+| TagoTiP | ~112 bytes | 4.3x smaller |
 | TagoTiP/S (AES-128-CCM) | ~115 bytes | 4.2x smaller |
 
 ## License

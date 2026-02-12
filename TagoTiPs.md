@@ -49,7 +49,7 @@ block-beta
   columns 6
   FL["Flags\n1 byte\n(cipher+version+method)"]:1
   CTR["Counter\n4 bytes\n(nonce component)"]:1
-  AH["Auth Hash\n8 bytes\nSHA-256(token)"]:1
+  AH["Auth Hash\n8 bytes\nSHA-256(token w/o at)"]:1
   DH["Device Hash\n4 bytes\nSHA-256(serial)"]:1
   CT["Ciphertext + Auth Tag\nN bytes (inner frame + tag)\nAEAD"]:2
 ```
@@ -72,8 +72,8 @@ TagoTiP/S uses the following credentials for envelope construction and processin
 
 | Credential | Format | Secrecy | Purpose |
 |---|---|---|---|
-| **Authorization Token** | `at` + 32 hex chars (34 chars total) | Secret | Identifies the Account/Profile. Used to derive the Authorization Hash for the envelope header. Not transmitted inside the encrypted payload. |
-| **Authorization Hash** | 8 bytes (derived) | Public | First 8 bytes of SHA-256 of the Authorization Token (UTF-8 encoded). Used as the **profile identifier** in the envelope header. Safe to display in UIs/logs. |
+| **Authorization Token** | `at` + 32 hex chars (34 chars total) | Secret | Identifies the Account/Profile. Used to derive the Authorization Hash. Never transmitted on the wire. |
+| **Authorization Hash** | 8 bytes (derived) | Public | First 8 bytes of SHA-256 of the Authorization Token **without the `at` prefix** (UTF-8 encoded). Used as the **profile identifier** in the envelope header and in TagoTiP frames. Safe to display in UIs/logs. |
 | **Device Hash** | 4 bytes (derived) | Public | First 4 bytes of SHA-256 of the device serial number (UTF-8 encoded). Used as the **device identifier** in the envelope header. Allows the server to identify the device before decryption. |
 | **Encryption Key** | 16 or 32 bytes (depends on cipher suite) | Secret | AEAD key used to encrypt/decrypt frames. Scoped **per-device** — each device has its own key. Looked up by the combination of Authorization Hash and Device Hash. |
 
@@ -83,9 +83,12 @@ Encryption Keys MUST be unique per device within a profile. Key reuse across dev
 
 Given an Authorization Token `ate2bd319014b24e0a8aca9f00aea4c0d0`:
 
-1. Encode the full token string as UTF-8 bytes
-2. Compute SHA-256 of those bytes
-3. Take the first 8 bytes of the digest: `0x59 0x4c 0x62 0x9b 0x79 0xcd 0xfb 0x54`
+1. Strip the `at` prefix: `e2bd319014b24e0a8aca9f00aea4c0d0`
+2. Encode the hex string as UTF-8 bytes
+3. Compute SHA-256 of those bytes
+4. Take the first 8 bytes of the digest: `0x4d 0xee 0xdd 0x7b 0xab 0x88 0x17 0xec`
+
+> **Note:** The Authorization Hash derivation is shared between TagoTiP and TagoTiP/S. See [TagoTiP.md §2](TagoTiP.md#2-credentials) for the same computation.
 
 ### 2.2 Deriving the Device Hash
 
@@ -207,7 +210,7 @@ The envelope is a single binary message constructed by concatenating the followi
 |---|---|---|
 | **Flags** | 1 byte | Cipher (bits 7–5), Version (bits 4–3), and Method (bits 2–0). See §5.1. |
 | **Counter** | 4 bytes | Sequence counter or random nonce (Big-Endian). Used to derive the AEAD nonce. |
-| **Authorization Hash** | 8 bytes | First 8 bytes of SHA-256 of the Authorization Token (UTF-8 encoded). Used by the server to identify the profile and look up the Encryption Key. |
+| **Authorization Hash** | 8 bytes | First 8 bytes of SHA-256 of the Authorization Token without the `at` prefix (UTF-8 encoded). Used by the server to identify the profile and look up the Encryption Key. |
 | **Device Hash** | 4 bytes | First 4 bytes of SHA-256 of the device serial number (UTF-8 encoded). Used by the server to identify the device before decryption. Also incorporated into the nonce to prevent nonce collisions across devices. |
 | **Ciphertext + Auth Tag** | Variable | AEAD-encrypted headless inner frame (see §4) followed by the authentication tag. Cipher suite selected by Flags byte. |
 
@@ -253,7 +256,7 @@ block-beta
   columns 6
   F["00\nFlags"]:1
   C["00 00 00 2A\nCounter (42)"]:1
-  A["59 4c 62 9b\n79 cd fb 54\nAuth Hash"]:1
+  A["4d ee dd 7b\nab 88 17 ec\nAuth Hash"]:1
   D["ab 77 88 d2\nDevice Hash"]:1
   CT["20 bytes\nCiphertext"]:1
   T["8 bytes\nAuth Tag"]:1
@@ -265,7 +268,7 @@ block-beta
 |---|---|---|
 | Flags | `00` (= cipher 0 AES-128-CCM, v0, PUSH) | Cipher, version, and method |
 | Counter | `00 00 00 2A` (= 42) | Nonce component |
-| Auth Hash | `59 4c 62 9b 79 cd fb 54` | SHA-256(token), first 8 bytes |
+| Auth Hash | `4d ee dd 7b ab 88 17 ec` | SHA-256(token without "at"), first 8 bytes |
 | Device Hash | `ab 77 88 d2` | SHA-256(serial), first 4 bytes |
 | Ciphertext | 20 bytes | Headless inner frame, encrypted |
 | Auth Tag | 8 bytes | CCM authentication tag |
@@ -414,7 +417,7 @@ Inputs:
   Cipher Suite:    0 (AES-128-CCM)
 
 Derived values:
-  Auth Hash:       59 4c 62 9b 79 cd fb 54   (SHA-256(token)[:8])
+  Auth Hash:       4d ee dd 7b ab 88 17 ec   (SHA-256(token without "at")[:8])
   Device Hash:     ab 77 88 d2               (SHA-256("sensor-01")[:4])
   Flags:           0x00                       (cipher 0, version 0, PUSH)
 
@@ -424,16 +427,16 @@ Headless inner frame (20 bytes):
 
 AEAD parameters:
   Nonce (13B):     00 00 00 00 00 ab 77 88 d2 00 00 00 2a
-  AAD (17B):       00 00 00 00 2a 59 4c 62 9b 79 cd fb 54 ab 77 88 d2
+  AAD (17B):       00 00 00 00 2a 4d ee dd 7b ab 88 17 ec ab 77 88 d2
 
 Output:
   Ciphertext (20B): c8 c5 aa 56 d7 55 58 2b ac ea 13 bb 57 24 93 bb 8c b1 08 03
-  Auth Tag (8B):    58 ff 0a 9b 38 3b 16 3a
+  Auth Tag (8B):    aa c4 e4 fe b9 d2 b6 1a
 
 Complete envelope (45 bytes):
-  00 00 00 00 2a 59 4c 62 9b 79 cd fb 54 ab 77 88
+  00 00 00 00 2a 4d ee dd 7b ab 88 17 ec ab 77 88
   d2 c8 c5 aa 56 d7 55 58 2b ac ea 13 bb 57 24 93
-  bb 8c b1 08 03 58 ff 0a 9b 38 3b 16 3a
+  bb 8c b1 08 03 aa c4 e4 fe b9 d2 b6 1a
 
 Breakdown: 1 (flags) + 4 (counter) + 8 (auth hash) + 4 (device hash) + 20 (ciphertext) + 8 (auth tag) = 45 bytes
 ```
@@ -457,8 +460,8 @@ parses STATUS=CMD, DETAIL=ota=https://example.com/v2.1.bin.
 Headless inner frame:  sensor-01|[temp:=32]   (20 bytes)
 Counter:               1
 Flags:                 0x80 (cipher 4 = ChaCha20-Poly1305, version 0, PUSH)
-Auth Hash:             SHA-256("ate2bd319014b24e0a8aca9f00aea4c0d0")[:8]
-                       → 594c629b79cdfb54 (8 bytes)
+Auth Hash:             SHA-256("e2bd319014b24e0a8aca9f00aea4c0d0")[:8]
+                       → 4deedd7bab8817ec (8 bytes)
 Device Hash:           SHA-256("sensor-01")[:4] → 4 bytes (e.g., 0xab7788d2)
 Encryption Key:        32 bytes (pre-provisioned, ChaCha20 requires 256-bit key)
 
@@ -495,18 +498,18 @@ Total: 1 + 4 + 8 + 4 + 20 + 16 = 53 bytes
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | — |
-| TagoTiP | ~130 bytes | 3.7× smaller |
+| TagoTiP | ~112 bytes | ~4.3× smaller |
 | **TagoTiP/S** | **~115 bytes** | **~4.2× smaller** |
 
-Example breakdown for a 130-byte TagoTiP frame:
+Example breakdown for a 112-byte TagoTiP frame:
 
 ```
-Full TagoTiP frame (130 bytes):
-  PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+Full TagoTiP frame (112 bytes):
+  PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
 
 Headless inner frame (90 bytes):
   sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
-  (removed "PUSH|ate2bd319014b24e0a8aca9f00aea4c0d0|" = 40 bytes)
+  (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
 
 Envelope (AES-128-CCM): 1 (flags) + 4 (counter) + 8 (auth hash) + 4 (device hash) + 90 (ciphertext) + 8 (auth tag) = 115 bytes
 Envelope (GCM/ChaCha20): 1 + 4 + 8 + 4 + 90 + 16 (auth tag) = 123 bytes
@@ -524,7 +527,7 @@ TagoTiP/S is designed to protect constrained IoT links against **passive eavesdr
 
 - The Encryption Key MUST be provisioned securely (e.g., during manufacturing or via a secure provisioning channel)
 - The Encryption Key MUST NOT be transmitted over the wire
-- The Authorization Hash is a truncated SHA-256 of the Authorization Token. Because SHA-256 is preimage-resistant, the hash does not leak any bits of the original token. The Device Hash (first 4 bytes of SHA-256 of serial) is similarly protected. Neither hash compromises the Encryption Key
+- The Authorization Hash is a truncated SHA-256 of the Authorization Token (without the `at` prefix). Because SHA-256 is preimage-resistant, the hash does not leak any bits of the original token. The Device Hash (first 4 bytes of SHA-256 of serial) is similarly protected. Neither hash compromises the Encryption Key
 - All supported cipher suites provide **authenticated encryption** (AEAD) — confidentiality and integrity in a single primitive. The authentication tag protects both the plaintext and the envelope header (via AAD). Tag length is 8 bytes for CCM suites and 16 bytes for GCM/ChaCha20-Poly1305 suites
 - The AAD mechanism protects envelope header integrity. An attacker cannot modify the Flags, Counter, Authorization Hash, or Device Hash fields without causing authentication failure
 - **Cipher suite downgrade protection:** The cipher suite is encoded in the Flags byte, which is integrity-protected via AAD. An attacker cannot downgrade the cipher suite without causing authentication failure
