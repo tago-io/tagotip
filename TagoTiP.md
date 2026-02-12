@@ -819,22 +819,22 @@ The same data point expressed across formats:
 PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
 ```
 
-**TagoTiP/S (~115 bytes):**
+**TagoTiP/S (~119 bytes):**
 
 ```
 Headless inner frame (90 bytes):
   sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
   (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
-Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 4 (device hash) + 90 (ciphertext) + 8 (auth tag) = 115 bytes
+Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 90 (ciphertext) + 8 (auth tag) = 119 bytes
 ```
 
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | — |
 | TagoTiP | ~112 bytes | ~4.3× smaller |
-| TagoTiP/S | ~115 bytes | ~4.2× smaller |
+| TagoTiP/S | ~119 bytes | ~4.1× smaller |
 
-TagoTiP sizes exclude transport-layer overhead (TCP/IP headers). The HTTP/JSON body alone is ~180 bytes; the ~487 figure includes typical HTTP request headers. TagoTiP/S adds encryption overhead (25-33 bytes depending on cipher suite) but removes the method and auth hash fields from the inner frame.
+TagoTiP sizes exclude transport-layer overhead (TCP/IP headers). The HTTP/JSON body alone is ~180 bytes; the ~487 figure includes typical HTTP request headers. TagoTiP/S adds encryption overhead (29-37 bytes depending on cipher suite) but removes the method and auth hash fields from the inner frame.
 
 ---
 

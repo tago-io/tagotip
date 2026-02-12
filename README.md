@@ -46,7 +46,6 @@ Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 o
 |---|---|
 | [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0 Draft, Revision B) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
 | [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0 Draft, Revision C) -- AEAD encrypted envelope for links without TLS |
-| [TagoTipServers.md](TagoTipServers.md) | Transport bindings -- HTTP, MQTT, and Raw (UDP/TCP) mappings |
 
 ## Protocol Overview
 
@@ -104,7 +103,7 @@ ACK|!42|OK|1
 
 ## TagoTiP/S -- Secure Envelope
 
-TagoTiP/S wraps TagoTiP data in a binary AEAD-encrypted envelope for links where TLS is unavailable (LoRa, Sigfox, NB-IoT, raw UDP). It uses a compact headless inner frame that omits redundant header fields, saving ~40 bytes per message.
+TagoTiP/S wraps TagoTiP data in a binary AEAD-encrypted envelope for links where TLS is unavailable (LoRa, Sigfox, NB-IoT, raw UDP). It uses a compact headless inner frame that omits redundant header fields, saving ~40-50 bytes per message.
 
 ### Supported Cipher Suites
 
@@ -119,20 +118,10 @@ TagoTiP/S wraps TagoTiP data in a binary AEAD-encrypted envelope for links where
 ### Envelope Structure
 
 ```
-[Flags 1B] [Counter 4B] [Auth Hash 8B] [Device Hash 4B] [Ciphertext + Auth Tag]
+[Flags 1B] [Counter 4B] [Auth Hash 8B] [Device Hash 8B] [Ciphertext + Auth Tag]
 ```
 
-Total overhead: 25 bytes (CCM) or 33 bytes (GCM / ChaCha20-Poly1305).
-
-## Transport Bindings
-
-TagoTiP can be carried over any transport. [TagoTipServers.md](TagoTipServers.md) defines how to map TagoTiP to transport-native features:
-
-| Binding | Method | Auth | Device ID | Overhead |
-|---|---|---|---|---|
-| **Raw** (UDP/TCP) | In frame | In frame | In frame | Full frame |
-| **HTTP** | HTTP method | `Authorization` header | URL path | Body only |
-| **MQTT** | Topic suffix (`/push`, `/pull`) | CONNECT credentials | `$tip/{serial}/...` topic | Body only |
+Total overhead: 29 bytes (CCM) or 37 bytes (GCM / ChaCha20-Poly1305).
 
 ## Size Comparison
 
@@ -140,7 +129,7 @@ TagoTiP can be carried over any transport. [TagoTipServers.md](TagoTipServers.md
 |---|---|---|
 | HTTP/JSON | ~487 bytes | -- |
 | TagoTiP | ~112 bytes | 4.3x smaller |
-| TagoTiP/S (AES-128-CCM) | ~115 bytes | 4.2x smaller |
+| TagoTiP/S | ~119 bytes | 4.1x smaller |
 
 ## License
 
