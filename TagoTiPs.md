@@ -103,6 +103,48 @@ Given a device serial `sensor-01`:
 
 The Encryption Key and Authorization Token SHOULD be provisioned during manufacturing or via a secure out-of-band channel. The protocol does not define a key exchange mechanism. The cipher suite SHOULD also be agreed upon during provisioning. The protocol does not include an in-band cipher negotiation mechanism; both sides must be configured to use the same cipher suite for a given device.
 
+### 2.4 Optional Key Derivation (HMAC-SHA256)
+
+Implementations MAY derive the Encryption Key from the Authorization Token and device serial number using HMAC-SHA256 instead of provisioning a separate key. This is a convenience feature — pre-provisioned keys remain fully supported and are the default.
+
+**Construction:**
+
+```
+derive_key(token, serial, key_len):
+  1. hex_part  = strip "at" prefix from token (if present)
+  2. hmac_key  = UTF-8 bytes of hex_part
+  3. message   = UTF-8 bytes of serial
+  4. output    = HMAC-SHA256(key=hmac_key, msg=message)   // 32 bytes
+  5. return    output[0..key_len]
+```
+
+- `key_len` = 16 for AES-128 cipher suites, 32 for AES-256 / ChaCha20-Poly1305
+- HMAC-SHA256 requires only SHA-256 (already required by §2.1 and §2.2) plus the HMAC wrapper (RFC 2104)
+- The token hex part is the HMAC key (secret); the serial is the message (semi-public). This is safe because HMAC security depends on the key being secret, not the message
+- SHA-256 output is 32 bytes, covering all cipher suite key sizes
+
+**Test vector** (using the spec credentials from §11.1):
+
+```
+Token:   ate2bd319014b24e0a8aca9f00aea4c0d0
+Serial:  sensor-01
+
+HMAC key (UTF-8):  "e2bd319014b24e0a8aca9f00aea4c0d0"
+HMAC message (UTF-8): "sensor-01"
+
+Derived key (32 bytes):
+  e5 05 f0 3c c9 e9 3f db cc 38 28 44 cc a3 e1 7f
+  df 0b b3 13 18 58 53 95 ce aa a3 9a 5d 14 19 64
+
+First 16 bytes (AES-128): e5 05 f0 3c c9 e9 3f db cc 38 28 44 cc a3 e1 7f
+```
+
+> **Note:** When using derived keys, the Authorization Token becomes the sole secret for a given device. Implementations using key derivation MUST treat the token with the same care as an Encryption Key.
+
+### 2.5 Hex Utilities (Non-Normative)
+
+SDK implementations SHOULD provide `hex_to_bytes` and `bytes_to_hex` utility functions to simplify working with pre-provisioned keys supplied as hex strings. These are not protocol-level operations but are commonly needed by integrators.
+
 ---
 
 ## 3. Security Primitives
@@ -443,6 +485,8 @@ Complete envelope (49 bytes):
 Breakdown: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 20 (ciphertext) + 8 (auth tag) = 49 bytes
 ```
 
+> **Note:** This test vector uses a pre-provisioned Encryption Key. The derived key for these credentials (§2.4) would be `e5 05 f0 3c ...` — a different value, confirming that key derivation is optional.
+
 ### 11.2 Downlink with Command
 
 ```
@@ -548,6 +592,12 @@ A dedicated Key Epoch header field was considered and intentionally omitted:
 - The collision-resolution mechanism in §12 step 9 already handles this case naturally
 
 Implementations SHOULD support a configurable key rotation window (e.g., accept both old and new keys for a grace period after rotation). After the grace period, the server SHOULD remove the old key to reduce trial-decryption candidates.
+
+### 14.2 Key Derivation Trade-offs (Non-Normative)
+
+When using optional key derivation (§2.4), the Authorization Token becomes the sole secret for all devices in a profile. Compromising the token allows deriving Encryption Keys for every device that uses derived keys under that profile. Pre-provisioned keys provide per-device isolation — compromising one device's key does not affect others.
+
+Deployments requiring per-device key isolation SHOULD use pre-provisioned keys.
 
 ---
 
