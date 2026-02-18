@@ -225,6 +225,62 @@ HTTP/1.1 200 OK
 X-TagoTiP-CMD: reboot
 ```
 
+### 2.9 TagoTiP/S Envelope Binding
+
+The HTTP binding also supports TagoTiP/S encrypted envelopes (see [TagoTiPs.md](TagoTiPs.md)) on a dedicated route. Authentication and device identification are carried inside the envelope header, not in HTTP headers or the URL path.
+
+**Route:**
+
+```
+POST /v1/tips
+```
+
+**Request:**
+
+- Method: `POST`
+- Content-Type: `application/octet-stream`
+- Body: a single TagoTiP/S envelope as defined in [TagoTiPs.md §5](TagoTiPs.md#5-envelope-structure)
+- No `Authorization` header — the Authorization Hash is in envelope header bytes 5–12
+- No device serial in the URL — the Device Hash is in envelope header bytes 13–20
+
+**Response (successful decryption):**
+
+- Status: `200 OK`
+- Content-Type: `application/octet-stream`
+- Body: an encrypted TagoTiP/S ACK envelope (method = ACK, Flags bit 2–0 = `0x3`)
+
+**Error responses (pre-decryption failures):**
+
+When the server cannot identify the profile or decrypt the envelope, it responds with a plaintext error string and an appropriate HTTP status code. See [TagoTiPs.md §9](TagoTiPs.md#9-downlink-server--client) for the complete list of fallback error codes.
+
+| HTTP Status | Body | Condition |
+|---|---|---|
+| `400 Bad Request` | `ACK\|ERR\|auth_failed` | Cannot identify profile or decrypt envelope |
+| `400 Bad Request` | `ACK\|ERR\|unsupported_version` | Unsupported protocol version |
+| `400 Bad Request` | `ACK\|ERR\|unsupported_cipher` | Unsupported cipher suite |
+| `413 Content Too Large` | `ACK\|ERR\|envelope_too_large` | Envelope exceeds size limit (see [TagoTiPs.md §5.5](TagoTiPs.md#55-size-limits)) |
+
+Pre-decryption error responses use `Content-Type: text/plain` since the server cannot construct an encrypted ACK without the Encryption Key.
+
+**Example -- TagoTiP/S PUSH:**
+
+```http
+POST /v1/tips HTTP/1.1
+Host: tip.tago.io
+Content-Type: application/octet-stream
+Content-Length: 49
+
+<49 bytes: TagoTiP/S envelope (AES-128-CCM PUSH)>
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/octet-stream
+Content-Length: 30
+
+<30 bytes: TagoTiP/S ACK envelope>
+```
+
 ---
 
 ## 3. MQTT Binding
