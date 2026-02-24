@@ -551,10 +551,10 @@ Example breakdown for a 112-byte TagoTiP frame:
 
 ```
 Full TagoTiP frame (112 bytes):
-  PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+  PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
 
 Headless inner frame (90 bytes):
-  sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+  sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
   (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
 
 Envelope (AES-128-CCM): 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 90 (ciphertext) + 8 (auth tag) = 119 bytes

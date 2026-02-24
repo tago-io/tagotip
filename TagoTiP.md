@@ -18,7 +18,7 @@
 
 **Version:** 1.0 (Draft)
 **Date:** February 2026
-**Status:** Draft Specification — Revision B
+**Status:** Draft Specification — Revision C
 
 > For the encrypted envelope (TagoTiP/S), see [TagoTiPs.md](TagoTiPs.md).
 
@@ -299,7 +299,7 @@ PUSH|!N|AUTH|SERIAL|BODY
 Where `BODY` is either a structured variable block or a passthrough payload:
 
 ```
-PUSH|AUTH|SERIAL|^GROUP@TIMESTAMP{META}[variables]     ← structured
+PUSH|AUTH|SERIAL|@TIMESTAMP^GROUP{META}[variables]     ← structured
 PUSH|AUTH|SERIAL|>xHEXDATA                             ← passthrough (hex)
 PUSH|AUTH|SERIAL|>bBASE64DATA                          ← passthrough (base64)
 ```
@@ -309,19 +309,19 @@ PUSH|AUTH|SERIAL|>bBASE64DATA                          ← passthrough (base64)
 Optional body-level modifiers may appear before the variable block. They set defaults that cascade to all variables in the body:
 
 ```
-PUSH|AUTH|SERIAL|^GROUP @TIMESTAMP {METADATA} [variables]
+PUSH|AUTH|SERIAL|@TIMESTAMP ^GROUP {METADATA} [variables]
 ```
 
 > *Spaces shown for readability only — not present in actual frames.*
 
 | Component | Required | Prefix | Description |
 |---|---|---|---|
-| `^GROUP` | No | `^` | Group ID applied to all variables |
 | `@TIMESTAMP` | No | `@` | Timestamp (ms) applied to all variables |
+| `^GROUP` | No | `^` | Group ID applied to all variables |
 | `{METADATA}` | No | `{}` | Metadata applied to all variables |
 | `[variables]` | Yes | `[]` | Variable block (always present for structured PUSH) |
 
-Body-level modifiers MUST appear in the order shown (`^GROUP`, `@TIMESTAMP`, `{METADATA}`) when present. Each modifier MAY be omitted, but those present MUST follow this order. If the same modifier type appears more than once, the frame MUST be rejected with `invalid_payload`.
+Body-level modifiers MUST appear in the order shown (`@TIMESTAMP`, `^GROUP`, `{METADATA}`) when present. Each modifier MAY be omitted, but those present MUST follow this order. If the same modifier type appears more than once, the frame MUST be rejected with `invalid_payload`.
 
 ### 6.3 Variable Syntax
 
@@ -384,7 +384,7 @@ temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
 Body-level modifiers cascade to all variables in the body:
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000{firmware=2.1}[temp:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
 ```
 
 Both `temp` and `humidity` inherit:
@@ -666,7 +666,7 @@ PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32{source=dht22,quality=high}]
 ### 11.6 Body-Level Defaults
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000{firmware=2.1}[temperature:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42{firmware=2.1}[temperature:=32#C;humidity:=65#%]
 ```
 
 ### 11.7 Variable-Level Timestamps (Datalogger)
@@ -769,7 +769,7 @@ For ACK with `!N`: minimum 3 fields (`ACK|!N|STATUS`), maximum 4 (`ACK|!N|STATUS
 
 1. If BODY starts with `>`, this is a **passthrough**: read encoding flag (`x` or `b`), deliver the data to the payload parser without further parsing
 2. Otherwise, scan for `[` — everything before `[` is body-level modifiers, everything inside `[]` is variables
-3. Parse body-level modifiers for optional `^GROUP`, `@TIMESTAMP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`)
+3. Parse body-level modifiers for optional `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`)
 4. Split variable content by `;` into individual variables (respecting `\;` escape)
 5. For each variable, parse left-to-right (single pass, no backtracking):
    - **Name**: Read until operator is found (`:=`, `?=`, `@=`, or `=`)
@@ -816,14 +816,14 @@ The same data point expressed across formats:
 **TagoTiP (~112 bytes):**
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
 ```
 
 **TagoTiP/S (~119 bytes):**
 
 ```
 Headless inner frame (90 bytes):
-  sensor-01|^batch_42@1694567890000[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+  sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
   (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
 Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 90 (ciphertext) + 8 (auth tag) = 119 bytes
 ```
@@ -865,7 +865,7 @@ push-body       = passthrough-body / structured-body
 passthrough-body = ">x" 1*(2HEXDIG)                     ; Hex-encoded passthrough (byte pairs)
                 / ">b" 1*BASE64CHAR                     ; Base64-encoded passthrough
 structured-body = [body-mods] "[" var-list "]"
-body-mods       = ["^" group] ["@" timestamp] ["{" meta-list "}"]
+body-mods       = ["@" timestamp] ["^" group] ["{" meta-list "}"]
 var-list        = variable *99(";" variable)              ; max 100 variables
 
 variable        = var-name ":=" num-value [common-suffixes]

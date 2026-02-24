@@ -80,7 +80,7 @@ temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
 Defaults that cascade to all variables in a frame, with variable-level overrides:
 
 ```
-PUSH|AUTH|SERIAL|^batch_42@1694567890000{firmware=2.1}[temp:=32#C;humidity:=65#%]
+PUSH|AUTH|SERIAL|@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
 ```
 
 ### Passthrough Payloads
