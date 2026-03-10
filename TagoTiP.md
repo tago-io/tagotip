@@ -16,9 +16,9 @@
 
 # TagoTiP — Transport IoT Protocol
 
-**Version:** 1.0 (Draft)
+**Version:** 1.0
 **Date:** February 2026
-**Status:** Draft Specification — Revision C
+**Status:** Specification — Revision C
 
 > For the encrypted envelope (TagoTiP/S), see [TagoTiPs.md](TagoTiPs.md).
 

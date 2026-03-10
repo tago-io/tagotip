@@ -44,8 +44,8 @@ Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 o
 
 | Document | Description |
 |---|---|
-| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0 Draft, Revision B) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
-| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0 Draft, Revision C) -- AEAD encrypted envelope for links without TLS |
+| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0, Revision C) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
+| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0, Revision C) -- AEAD encrypted envelope for links without TLS |
 
 ## Protocol Overview
 

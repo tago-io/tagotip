@@ -27,11 +27,6 @@ Standardized the ordering of `@TIMESTAMP` and `^GROUP` between body-level modifi
 
 - Section 13 -- size comparison examples (full frame and headless inner frame)
 
-**Affected sections in TagoTipServers.md:**
-
-- Section 2.4 -- HTTP body example
-- Section 3.3 -- MQTT payload example
-
 **Migration:** Reorder body-level modifiers from `^GROUP@TIMESTAMP` to `@TIMESTAMP^GROUP` in all frame builders and parsers.
 
 ---
@@ -44,7 +39,7 @@ No functional changes. Updated size comparison examples to reflect the body-leve
 
 ## TagoTiP 1.0 — Revision B
 
-Initial draft specification.
+Initial specification.
 
 ## TagoTiP/S 1.0 — Revision C
 
