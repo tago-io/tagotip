@@ -35,7 +35,7 @@ Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 o
 
 - **Human-readable** -- frames can be read and composed in a terminal
 - **Type-safe** -- explicit operators for numbers (`:=`), strings (`=`), booleans (`?=`), and locations (`@=`)
-- **Compact** -- ~4.3x smaller than equivalent HTTP/JSON
+- **Compact** -- ~4.7x smaller than equivalent HTTP/JSON
 - **Transport-agnostic** -- works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
 - **C-friendly** -- linear parsing, predictable buffer sizes, minimal string handling
 - **Complete** -- supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
@@ -44,8 +44,8 @@ Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 o
 
 | Document | Description |
 |---|---|
-| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0, Revision C) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
-| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0, Revision C) -- AEAD encrypted envelope for links without TLS |
+| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0, Revision D) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
+| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0, Revision D) -- AEAD encrypted envelope for links without TLS |
 
 ## Protocol Overview
 
@@ -69,10 +69,10 @@ Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 o
 
 ### Variable Suffixes
 
-Each variable supports optional suffixes for unit (`#`), timestamp (`@`), group (`^`), and metadata (`{}`):
+Each variable supports optional suffixes for unit (`#`), location (`@=`), timestamp (`@`), group (`^`), and metadata (`{}`):
 
 ```
-temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
+temperature:=32.5#C@=39.74,-104.99@1694567890000^reading_001{source=dht22,quality=high}
 ```
 
 ### Body-Level Modifiers
@@ -80,7 +80,7 @@ temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
 Defaults that cascade to all variables in a frame, with variable-level overrides:
 
 ```
-PUSH|AUTH|SERIAL|@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
+PUSH|AUTH|SERIAL|@=39.74,-104.99@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
 ```
 
 ### Passthrough Payloads
@@ -128,8 +128,8 @@ Total overhead: 29 bytes (CCM) or 37 bytes (GCM / ChaCha20-Poly1305).
 | Format | Size | Ratio |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | -- |
-| TagoTiP | ~112 bytes | 4.3x smaller |
-| TagoTiP/S | ~119 bytes | 4.1x smaller |
+| TagoTiP | ~103 bytes | 4.7x smaller |
+| TagoTiP/S | ~110 bytes | 4.4x smaller |
 
 ## License
 

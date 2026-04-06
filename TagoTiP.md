@@ -18,7 +18,7 @@
 
 **Version:** 1.0
 **Date:** February 2026
-**Status:** Specification — Revision C
+**Status:** Specification — Revision D
 
 > For the encrypted envelope (TagoTiP/S), see [TagoTiPs.md](TagoTiPs.md).
 
@@ -299,7 +299,7 @@ PUSH|!N|AUTH|SERIAL|BODY
 Where `BODY` is either a structured variable block or a passthrough payload:
 
 ```
-PUSH|AUTH|SERIAL|@TIMESTAMP^GROUP{META}[variables]     ← structured
+PUSH|AUTH|SERIAL|@=LOC@TIMESTAMP^GROUP{META}[variables] ← structured
 PUSH|AUTH|SERIAL|>xHEXDATA                             ← passthrough (hex)
 PUSH|AUTH|SERIAL|>bBASE64DATA                          ← passthrough (base64)
 ```
@@ -309,26 +309,27 @@ PUSH|AUTH|SERIAL|>bBASE64DATA                          ← passthrough (base64)
 Optional body-level modifiers may appear before the variable block. They set defaults that cascade to all variables in the body:
 
 ```
-PUSH|AUTH|SERIAL|@TIMESTAMP ^GROUP {METADATA} [variables]
+PUSH|AUTH|SERIAL|@=LOCATION @TIMESTAMP ^GROUP {METADATA} [variables]
 ```
 
 > *Spaces shown for readability only — not present in actual frames.*
 
 | Component | Required | Prefix | Description |
 |---|---|---|---|
+| `@=LOCATION` | No | `@=` | Location applied to all variables |
 | `@TIMESTAMP` | No | `@` | Timestamp (ms) applied to all variables |
 | `^GROUP` | No | `^` | Group ID applied to all variables |
 | `{METADATA}` | No | `{}` | Metadata applied to all variables |
 | `[variables]` | Yes | `[]` | Variable block (always present for structured PUSH) |
 
-Body-level modifiers MUST appear in the order shown (`@TIMESTAMP`, `^GROUP`, `{METADATA}`) when present. Each modifier MAY be omitted, but those present MUST follow this order. If the same modifier type appears more than once, the frame MUST be rejected with `invalid_payload`.
+Body-level modifiers MUST appear in the order shown (`@=LOCATION`, `@TIMESTAMP`, `^GROUP`, `{METADATA}`) when present. Each modifier MAY be omitted, but those present MUST follow this order. If the same modifier type appears more than once, the frame MUST be rejected with `invalid_payload`.
 
 ### 6.3 Variable Syntax
 
 Variables are separated by semicolons (`;`) inside the brackets. Each variable follows this structure:
 
 ```
-NAME OPERATOR VALUE #UNIT @TIMESTAMP ^GROUP {METADATA}
+NAME OPERATOR VALUE #UNIT @=LOCATION @TIMESTAMP ^GROUP {METADATA}
 ```
 
 All suffixes are optional and MUST appear in the order shown when present.
@@ -363,11 +364,16 @@ Location coordinates follow the same numeric format as the number type. Validati
 | Suffix | Prefix | Description | Example |
 |---|---|---|---|
 | Unit | `#` | Unit of measurement | `temperature:=32#F` |
+| Location | `@=` | Geographic coordinates (`lat,lng[,alt]`) | `speed:=10@=39.74,-104.99` |
 | Timestamp | `@` | UNIX timestamp in milliseconds | `temperature:=32@1694567890000` |
 | Group | `^` | Group ID for linking data points | `temperature:=32^reading_001` |
 | Metadata | `{}` | Key-value pairs separated by `,` | `temperature:=32{source=dht22,quality=high}` |
 
-The `#unit` suffix MUST NOT be used with the location operator (`@=`). A `#` character after a location value is a **parse error** — the server MUST reject the frame with `invalid_payload`. Altitude in a location triple is always in meters.
+The `@=location` suffix attaches geographic coordinates to a variable with a non-location value type. The coordinate format is the same as the location operator value: `lat,lng` or `lat,lng,alt`. This enables sending a value and its location in a single variable.
+
+The `#unit` and `@=location` suffixes MUST NOT be used with the location operator (`@=`) — the server MUST reject the frame with `invalid_payload`. Altitude in a location triple is always in meters.
+
+Parsers disambiguate the `@=` location suffix from the `@` timestamp suffix by checking the character after `@`: if `=`, parse as location; if digit, parse as timestamp.
 
 Metadata keys follow the same character rules as variable names (lowercase alphanumeric and underscore). Metadata keys do not support escape sequences — they are restricted to the identifier charset (`[a-z0-9_]`), which contains no structural characters. Metadata values follow the same encoding rules as string values (printable UTF-8, with escaping for structural characters).
 
@@ -376,7 +382,7 @@ Metadata keys follow the same character rules as variable names (lowercase alpha
 With all optional suffixes:
 
 ```
-temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
+temperature:=32.5#C@=39.74,-104.99@1694567890000^reading_001{source=dht22,quality=high}
 ```
 
 ### 6.4 Inheritance Rules
@@ -384,21 +390,22 @@ temperature:=32.5#C@1694567890000^reading_001{source=dht22,quality=high}
 Body-level modifiers cascade to all variables in the body:
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99@1694567890000^batch_42{firmware=2.1}[temp:=32#C;humidity:=65#%]
 ```
 
 Both `temp` and `humidity` inherit:
-- Group: `batch_42`
+- Location: `{lat: 39.74, lng: -104.99}`
 - Timestamp: `1694567890000`
+- Group: `batch_42`
 - Metadata: `firmware=2.1`
 
-Variable-level modifiers **override** body-level:
+Variable-level modifiers **override** body-level for location, timestamp, and group:
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|@1694567890000[temp:=32@1694567891000;humidity:=65]
+PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99@1694567890000[temp:=32@=39.75,-105.00@1694567891000;humidity:=65]
 ```
 
-Here `temp` uses its own timestamp `1694567891000`, while `humidity` uses the body-level `1694567890000`.
+Here `temp` uses its own location and timestamp, while `humidity` uses the body-level values.
 
 For metadata, variable-level **merges** with body-level (variable wins on key conflicts):
 
@@ -651,10 +658,18 @@ Negative number example:
 PUSH|4deedd7bab8817ec|sensor-0A1F|[temperature:=-15.3#C]
 ```
 
-### 11.4 With Location and Altitude
+### 11.4 With Location
+
+Location as value (using `@=` operator):
 
 ```
-PUSH|4deedd7bab8817ec|drone-07|[altitude:=305#m;position@=39.74,-104.99,305]
+PUSH|4deedd7bab8817ec|drone-07|[position@=39.74,-104.99,305]
+```
+
+Location attached to a non-location value (using `@=` suffix):
+
+```
+PUSH|4deedd7bab8817ec|drone-07|[speed:=10#km/h@=39.74,-104.99,305]
 ```
 
 ### 11.5 With Metadata
@@ -666,7 +681,7 @@ PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32{source=dht22,quality=high}]
 ### 11.6 Body-Level Defaults
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42{firmware=2.1}[temperature:=32#C;humidity:=65#%]
+PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99@1694567890000^batch_42{firmware=2.1}[temperature:=32#C;humidity:=65#%]
 ```
 
 ### 11.7 Variable-Level Timestamps (Datalogger)
@@ -769,14 +784,15 @@ For ACK with `!N`: minimum 3 fields (`ACK|!N|STATUS`), maximum 4 (`ACK|!N|STATUS
 
 1. If BODY starts with `>`, this is a **passthrough**: read encoding flag (`x` or `b`), deliver the data to the payload parser without further parsing
 2. Otherwise, scan for `[` — everything before `[` is body-level modifiers, everything inside `[]` is variables
-3. Parse body-level modifiers for optional `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`)
+3. Parse body-level modifiers for optional `@=LOCATION`, `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`). After `@`, check: if `=` follows → location; if digit follows → timestamp.
 4. Split variable content by `;` into individual variables (respecting `\;` escape)
 5. For each variable, parse left-to-right (single pass, no backtracking):
    - **Name**: Read until operator is found (`:=`, `?=`, `@=`, or `=`)
    - **Operator**: Determines value type
    - **Value**: Read until `#`, `@`, `^`, `{`, `;`, or `]` (respecting escapes)
    - **#unit**: If `#` found, read until `@`, `^`, `{`, `;`, or `]`. MUST NOT appear with `@=` operator.
-   - **@timestamp**: If `@` found, read digits until `^`, `{`, `;`, or `]`
+   - **@=location**: If `@=` found, read coordinates (two or three comma-separated numbers) until `@`, `^`, `{`, `;`, or `]`. MUST NOT appear with `@=` operator.
+   - **@timestamp**: If `@` found (not followed by `=`), read digits until `^`, `{`, `;`, or `]`
    - **^group**: If `^` found, read until `{`, `;`, or `]`
    - **{metadata}**: If `{` found, read until `}` and parse key-value pairs by `,` (respecting `\,` and `\}` escapes). Each metadata pair is split on the first `=`; subsequent `=` characters are part of the value.
 
@@ -813,26 +829,26 @@ The same data point expressed across formats:
 }
 ```
 
-**TagoTiP (~112 bytes):**
+**TagoTiP (~103 bytes):**
 
 ```
-PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F@=39.74,-104.99{source=dht22}]
 ```
 
-**TagoTiP/S (~119 bytes):**
+**TagoTiP/S (~110 bytes):**
 
 ```
-Headless inner frame (90 bytes):
-  sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+Headless inner frame (81 bytes):
+  sensor-01|@1694567890000^batch_42[temperature:=32#F@=39.74,-104.99{source=dht22}]
   (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
-Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 90 (ciphertext) + 8 (auth tag) = 119 bytes
+Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 81 (ciphertext) + 8 (auth tag) = 110 bytes
 ```
 
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | — |
-| TagoTiP | ~112 bytes | ~4.3× smaller |
-| TagoTiP/S | ~119 bytes | ~4.1× smaller |
+| TagoTiP | ~103 bytes | ~4.7× smaller |
+| TagoTiP/S | ~110 bytes | ~4.4× smaller |
 
 TagoTiP sizes exclude transport-layer overhead (TCP/IP headers). The HTTP/JSON body alone is ~180 bytes; the ~487 figure includes typical HTTP request headers. TagoTiP/S adds encryption overhead (29-37 bytes depending on cipher suite) but removes the method and auth hash fields from the inner frame.
 
@@ -865,7 +881,7 @@ push-body       = passthrough-body / structured-body
 passthrough-body = ">x" 1*(2HEXDIG)                     ; Hex-encoded passthrough (byte pairs)
                 / ">b" 1*BASE64CHAR                     ; Base64-encoded passthrough
 structured-body = [body-mods] "[" var-list "]"
-body-mods       = ["@" timestamp] ["^" group] ["{" meta-list "}"]
+body-mods       = ["@=" loc-value] ["@" timestamp] ["^" group] ["{" meta-list "}"]
 var-list        = variable *99(";" variable)              ; max 100 variables
 
 variable        = var-name ":=" num-value [common-suffixes]
@@ -882,9 +898,9 @@ bool-value      = "true" / "false"
 loc-value       = coordinate "," coordinate ["," coordinate]
 coordinate      = ["-"] int-part ["." 1*DIGIT]
 
-common-suffixes = ["#" unit] ["@" timestamp] ["^" group] ["{" meta-list "}"]
+common-suffixes = ["#" unit] ["@=" loc-value] ["@" timestamp] ["^" group] ["{" meta-list "}"]
 loc-suffixes    = ["@" timestamp] ["^" group] ["{" meta-list "}"]
-                                                        ; no #unit for location (§6.3.2)
+                                                        ; no #unit or @=location for @= operator (§6.3.2)
 
 unit            = 1*25UNITCHAR                           ; max 25 bytes
 timestamp       = 1*DIGIT                              ; UNIX ms
@@ -931,7 +947,7 @@ BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
                                                         ; Padding position enforced by decoder
 ```
 
-**Note:** The character classes above precisely exclude structural delimiters from their base ranges. `VALCHAR` allows unescaped `,` (used literally in string values), while `METAVALCHAR` excludes it (since `,` separates metadata pairs). The `variable` production is split by operator type to enforce type-specific value formats (§6.3) and the rule that `#unit` MUST NOT be used with `@=` (§6.3.2). See §12.2 for detailed parsing rules.
+**Note:** The character classes above precisely exclude structural delimiters from their base ranges. `VALCHAR` allows unescaped `,` (used literally in string values), while `METAVALCHAR` excludes it (since `,` separates metadata pairs). The `variable` production is split by operator type to enforce type-specific value formats (§6.3) and the rules that `#unit` and `@=location` MUST NOT be used with the `@=` operator (§6.3.2). See §12.2 for detailed parsing rules.
 
 ---
 
@@ -947,7 +963,7 @@ BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
 | `:=` | Number assignment | Variable operator |
 | `=` | String assignment | Variable operator |
 | `?=` | Boolean assignment | Variable operator |
-| `@=` | Location assignment | Variable operator |
+| `@=` | Location assignment / Location suffix | Variable operator or suffix |
 | `#` | Unit suffix | After variable value |
 | `@` | Timestamp suffix | After value/unit |
 | `^` | Group suffix/prefix | Body-level modifier or variable level |

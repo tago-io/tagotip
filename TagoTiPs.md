@@ -18,7 +18,7 @@
 
 **Version:** 1.0
 **Date:** February 2026
-**Status:** Specification — Revision C
+**Status:** Specification — Revision D
 
 > TagoTiP/S wraps TagoTiP data in a binary envelope. For the plaintext frame format (methods, variable syntax, parsing), see [TagoTiP.md](TagoTiP.md).
 
@@ -544,21 +544,21 @@ Total: 1 + 4 + 8 + 8 + 20 + 16 = 57 bytes
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
 | HTTP/JSON | ~487 bytes | — |
-| TagoTiP | ~112 bytes | ~4.3× smaller |
-| **TagoTiP/S** | **~119 bytes** | **~4.1× smaller** |
+| TagoTiP | ~103 bytes | ~4.7× smaller |
+| **TagoTiP/S** | **~110 bytes** | **~4.4× smaller** |
 
-Example breakdown for a 112-byte TagoTiP frame:
+Example breakdown for a 103-byte TagoTiP frame:
 
 ```
-Full TagoTiP frame (112 bytes):
-  PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+Full TagoTiP frame (103 bytes):
+  PUSH|4deedd7bab8817ec|sensor-01|@1694567890000^batch_42[temperature:=32#F@=39.74,-104.99{source=dht22}]
 
-Headless inner frame (90 bytes):
-  sensor-01|@1694567890000^batch_42[temperature:=32#F;position@=39.74,-104.99{source=dht22}]
+Headless inner frame (81 bytes):
+  sensor-01|@1694567890000^batch_42[temperature:=32#F@=39.74,-104.99{source=dht22}]
   (removed "PUSH|4deedd7bab8817ec|" = 22 bytes)
 
-Envelope (AES-128-CCM): 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 90 (ciphertext) + 8 (auth tag) = 119 bytes
-Envelope (GCM/ChaCha20): 1 + 4 + 8 + 8 + 90 + 16 (auth tag) = 127 bytes
+Envelope (AES-128-CCM): 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 81 (ciphertext) + 8 (auth tag) = 110 bytes
+Envelope (GCM/ChaCha20): 1 + 4 + 8 + 8 + 81 + 16 (auth tag) = 118 bytes
 ```
 
 > **Note:** 29 bytes overhead with AES-128-CCM (8B tag), 37 bytes with GCM or ChaCha20-Poly1305 (16B tag).
