@@ -36,6 +36,7 @@ PUSH|AUTH|SERIAL|[speed:=10@=39.74,-104.99]
 - Section 6.4 — inheritance rules and examples
 - Section 11.4 — location examples
 - Section 11.6 — body-level defaults example
+- Section 7.2 — PULL response format
 - Section 12.2 — PUSH body parsing rules (body-level and variable-level)
 - Section 13 — size comparison examples
 - Section 14 — ABNF grammar (`body-mods`, `common-suffixes`)

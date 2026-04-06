@@ -17,7 +17,7 @@
 # TagoTiP/S — Secure Crypto Envelope
 
 **Version:** 1.0
-**Date:** February 2026
+**Date:** April 2026
 **Status:** Specification — Revision D
 
 > TagoTiP/S wraps TagoTiP data in a binary envelope. For the plaintext frame format (methods, variable syntax, parsing), see [TagoTiP.md](TagoTiP.md).

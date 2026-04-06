@@ -17,7 +17,7 @@
 # TagoTiP — Transport IoT Protocol
 
 **Version:** 1.0
-**Date:** February 2026
+**Date:** April 2026
 **Status:** Specification — Revision D
 
 > For the encrypted envelope (TagoTiP/S), see [TagoTiPs.md](TagoTiPs.md).
@@ -373,7 +373,7 @@ The `@=location` suffix attaches geographic coordinates to a variable with a non
 
 The `#unit` and `@=location` suffixes MUST NOT be used with the location operator (`@=`) — the server MUST reject the frame with `invalid_payload`. Altitude in a location triple is always in meters.
 
-Parsers disambiguate the `@=` location suffix from the `@` timestamp suffix by checking the character after `@`: if `=`, parse as location; if digit, parse as timestamp.
+Parsers disambiguate the `@=` location suffix from the `@` timestamp suffix by checking the character after `@`: if `=`, parse as location; if digit, parse as timestamp; otherwise, reject with `invalid_payload`.
 
 Metadata keys follow the same character rules as variable names (lowercase alphanumeric and underscore). Metadata keys do not support escape sequences — they are restricted to the identifier charset (`[a-z0-9_]`), which contains no structural characters. Metadata values follow the same encoding rules as string values (printable UTF-8, with escaping for structural characters).
 
@@ -405,7 +405,7 @@ Variable-level modifiers **override** body-level for location, timestamp, and gr
 PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99@1694567890000[temp:=32@=39.75,-105.00@1694567891000;humidity:=65]
 ```
 
-Here `temp` uses its own location and timestamp, while `humidity` uses the body-level values.
+Here `temp` uses its own location and timestamp, while `humidity` uses the body-level values. Variables using the `@=` operator carry their own location as the value itself; body-level `@=LOCATION` has no effect on them.
 
 For metadata, variable-level **merges** with body-level (variable wins on key conflicts):
 
@@ -458,7 +458,7 @@ Retrieves the last stored value of one or more variables from the specified devi
 The server MUST return the found variables in bracket-wrapped standard syntax:
 
 ```
-ACK|OK|[VARIABLE OPERATOR VALUE #UNIT @TIMESTAMP ^GROUP {METADATA};...]
+ACK|OK|[VARIABLE OPERATOR VALUE #UNIT @=LOCATION @TIMESTAMP ^GROUP {METADATA};...]
 ```
 
 The response always uses bracket-wrapped variable syntax, matching the PUSH body format. Only found variables are included — variables that do not exist or have no stored values are silently omitted. If **none** of the requested variables are found, the server MUST respond with `ACK|ERR|variable_not_found`.
@@ -965,7 +965,7 @@ BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
 | `?=` | Boolean assignment | Variable operator |
 | `@=` | Location assignment / Location suffix | Variable operator or suffix |
 | `#` | Unit suffix | After variable value |
-| `@` | Timestamp suffix | After value/unit |
+| `@` | Timestamp suffix | After value/unit/location |
 | `^` | Group suffix/prefix | Body-level modifier or variable level |
 | `{}` | Metadata block | Body-level modifier or variable level |
 | `>x` | Hex passthrough payload | PUSH body prefix |
