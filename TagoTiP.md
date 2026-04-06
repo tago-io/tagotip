@@ -407,6 +407,12 @@ PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99@1694567890000[temp:=32@=39.75,-1
 
 Here `temp` uses its own location and timestamp, while `humidity` uses the body-level values. Variables using the `@=` operator carry their own location as the value itself; body-level `@=LOCATION` has no effect on them.
 
+```
+PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99[speed:=10;position@=40.00,-105.50]
+```
+
+Here `speed` inherits the body-level location `{lat: 39.74, lng: -104.99}`, but `position` uses its own value `{lat: 40.00, lng: -105.50}` — body-level `@=` does not override `@=` operator variables.
+
 For metadata, variable-level **merges** with body-level (variable wins on key conflicts):
 
 ```
