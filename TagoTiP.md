@@ -793,7 +793,7 @@ For ACK with `!N`: minimum 3 fields (`ACK|!N|STATUS`), maximum 4 (`ACK|!N|STATUS
 
 1. If BODY starts with `>`, this is a **passthrough**: read encoding flag (`x` or `b`), deliver the data to the payload parser without further parsing
 2. Otherwise, scan for `[` — everything before `[` is body-level modifiers, everything inside `[]` is variables
-3. Parse body-level modifiers for optional `@=LOCATION`, `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`). After `@`, check: if `=` follows → location; if digit follows → timestamp.
+3. Parse body-level modifiers for optional `@=LOCATION`, `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`). After `@`, check: if `=` follows → location; if digit follows → timestamp; otherwise reject with `invalid_payload`.
 4. Split variable content by `;` into individual variables (respecting `\;` escape)
 5. For each variable, parse left-to-right (single pass, no backtracking):
    - **Name**: Read until operator is found (`:=`, `?=`, `@=`, or `=`)
