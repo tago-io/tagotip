@@ -473,9 +473,12 @@ Examples:
 
 → PULL|4deedd7bab8817ec|weather-denver|[temperature;humidity;pressure]
 ← ACK|OK|[temperature:=32#F@1694567890000;humidity:=65#%@1694567890000]
+
+→ PULL|4deedd7bab8817ec|drone-07|[speed]
+← ACK|OK|[speed:=10#km/h@=39.74,-104.99@1694567890000]
 ```
 
-In the second example, `pressure` was requested but not found — it is silently omitted from the response.
+In the second example, `pressure` was requested but not found — it is silently omitted from the response. The third example shows a response with the `@=` location suffix attached to a numeric value.
 
 ---
 
