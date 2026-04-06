@@ -831,7 +831,7 @@ The same data point expressed across formats:
   "variable": "temperature",
   "value": 32,
   "unit": "F",
-  "group": "batch-42",
+  "group": "batch_42",
   "time": "1694567890000",
   "location": {"lat": 39.74, "lng": -104.99},
   "metadata": {"source": "dht22"}
