@@ -19,7 +19,7 @@
   <img src="https://assets.tago.io/tagoio/tagoio.png" width="250px" alt="TagoIO"></img>
 </p>
 
-# TagoTiP -- Transport IoT Protocol
+# TagoTiP: Transport IoT Protocol
 
 A lightweight, human-readable protocol for sending and receiving IoT data to [TagoIO](https://tago.io). TagoTiP provides a compact alternative to HTTP/JSON for resource-constrained embedded devices.
 
@@ -29,23 +29,23 @@ A lightweight, human-readable protocol for sending and receiving IoT data to [Ta
 PUSH|4deedd7bab8817ec|sensor-01|[temperature:=32.5#C;humidity:=65#%]
 ```
 
-Where `4deedd7bab8817ec` is the Authorization Hash -- first 8 bytes of SHA-256 of the device token (without the `at` prefix).
+Where `4deedd7bab8817ec` is the Authorization Hash: the first 8 bytes of SHA-256 of the device token (without the `at` prefix).
 
 ## Key Features
 
-- **Human-readable** -- frames can be read and composed in a terminal
-- **Type-safe** -- explicit operators for numbers (`:=`), strings (`=`), booleans (`?=`), and locations (`@=`)
-- **Compact** -- ~4.7x smaller than equivalent HTTP/JSON
-- **Transport-agnostic** -- works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
-- **C-friendly** -- linear parsing, predictable buffer sizes, minimal string handling
-- **Complete** -- supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
+- **Human-readable**: frames can be read and composed in a terminal
+- **Type-safe**: explicit operators for numbers (`:=`), strings (`=`), booleans (`?=`), and locations (`@=`)
+- **Compact**: ~4.7x smaller than equivalent HTTP/JSON
+- **Transport-agnostic**: works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
+- **C-friendly**: linear parsing, predictable buffer sizes, minimal string handling
+- **Complete**: supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
 
 ## Documentation
 
 | Document | Description |
 |---|---|
-| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0, Revision D) -- frame format, methods, variable syntax, parsing rules, ABNF grammar |
-| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0, Revision D) -- AEAD encrypted envelope for links without TLS |
+| [TagoTiP.md](TagoTiP.md) | Core protocol specification (v1.0, Revision D): frame format, methods, variable syntax, parsing rules, ABNF grammar |
+| [TagoTiPs.md](TagoTiPs.md) | TagoTiP/S (v1.0, Revision D): AEAD encrypted envelope for links without TLS |
 
 ## Protocol Overview
 
@@ -101,7 +101,7 @@ PUSH|!42|AUTH|SERIAL|[temperature:=32]
 ACK|!42|OK|1
 ```
 
-## TagoTiP/S -- Secure Envelope
+## TagoTiP/S: Secure Envelope
 
 TagoTiP/S wraps TagoTiP data in a binary AEAD-encrypted envelope for links where TLS is unavailable (LoRa, Sigfox, NB-IoT, raw UDP). It uses a compact headless inner frame that omits redundant header fields, saving ~40-50 bytes per message.
 
@@ -127,12 +127,12 @@ Total overhead: 29 bytes (CCM) or 37 bytes (GCM / ChaCha20-Poly1305).
 
 | Format | Size | Ratio |
 |---|---|---|
-| HTTP/JSON | ~487 bytes | -- |
+| HTTP/JSON | ~487 bytes | baseline |
 | TagoTiP | ~103 bytes | 4.7x smaller |
 | TagoTiP/S | ~110 bytes | 4.4x smaller |
 
 ## License
 
-Apache License 2.0 -- see [LICENSE](LICENSE) for details.
+Apache License 2.0. See [LICENSE](LICENSE) for details.
 
 Anyone is free to implement TagoTiP for any purpose, including commercial use. The names "TagoTiP", "TagoTiP/S", and "TagoIO" are trademarks of TagoIO Inc. See [NOTICE](NOTICE) for trademark details.

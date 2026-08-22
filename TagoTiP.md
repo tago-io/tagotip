@@ -14,11 +14,11 @@
   limitations under the License.
 -->
 
-# TagoTiP — Transport IoT Protocol
+# TagoTiP: Transport IoT Protocol
 
 **Version:** 1.0
 **Date:** April 2026
-**Status:** Specification — Revision D
+**Status:** Specification, Revision D
 
 > For the encrypted envelope (TagoTiP/S), see [TagoTiPs.md](TagoTiPs.md).
 
@@ -28,7 +28,7 @@
 
 TagoTiP is a lightweight, human-readable protocol designed for sending and receiving IoT data to TagoIO. It provides a compact alternative to HTTP/JSON for resource-constrained embedded devices.
 
-TagoTiP is **transport-agnostic**. It can be carried over UDP, TCP, HTTP(S), MQTT, or any other transport. This specification defines only the message format and parsing rules — not transport-specific behavior such as ports, connection management, or delivery guarantees.
+TagoTiP is **transport-agnostic**. It can be carried over UDP, TCP, HTTP(S), MQTT, or any other transport. This specification defines only the message format and parsing rules, not transport-specific behavior such as ports, connection management, or delivery guarantees.
 
 > **Note:** For encryption without TLS, TagoTiP frames can be wrapped in a **TagoTiP/S** crypto envelope. See [TagoTiPs.md](TagoTiPs.md).
 
@@ -46,12 +46,12 @@ block-beta
 
 ### 1.2 Design Goals
 
-- **Human-readable** — frames can be read and composed manually in a terminal
-- **Type-safe** — value types (number, string, boolean, location) are explicit in the syntax
-- **C-friendly** — minimal string concatenation, predictable buffer sizes, linear parsing
-- **Compact** — minimal overhead per frame compared to HTTP/JSON
-- **Transport-agnostic** — works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
-- **Complete** — supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
+- **Human-readable**: frames can be read and composed manually in a terminal
+- **Type-safe**: value types (number, string, boolean, location) are explicit in the syntax
+- **C-friendly**: minimal string concatenation, predictable buffer sizes, linear parsing
+- **Compact**: minimal overhead per frame compared to HTTP/JSON
+- **Transport-agnostic**: works over UDP, TCP, HTTP(S), MQTT, or any byte-capable channel
+- **Complete**: supports all TagoIO data model fields: variable, value, unit, time, group, location, and metadata
 
 ### 1.3 Conventions
 
@@ -68,7 +68,7 @@ block-beta
 | Term | Meaning |
 |---|---|
 | **Frame** | A TagoTiP text message (e.g., `PUSH\|AUTH\|SERIAL\|BODY`) |
-| **Message** | The abstract unit of communication — either a frame or an envelope |
+| **Message** | The abstract unit of communication: either a frame or an envelope |
 | **Uplink** | Client → Server direction |
 | **Downlink** | Server → Client direction |
 
@@ -111,9 +111,9 @@ The following guidance is non-normative and intended to help implementers.
 
 The `\n` byte (0x0A) MUST NOT appear inside frame field values. On stream transports (TCP), it terminates the frame. On message transports (UDP, MQTT, HTTP), it is unnecessary but harmless if present.
 
-> **Normative clarification:** The ABNF grammar defines frames with a trailing `LF` for the canonical wire format. On message-boundary transports (UDP, MQTT, HTTP body), the trailing `LF` is OPTIONAL — receivers on these transports MUST accept frames both with and without a trailing `LF`. On stream transports (TCP), the trailing `LF` is REQUIRED as the frame delimiter.
+> **Normative clarification:** The ABNF grammar defines frames with a trailing `LF` for the canonical wire format. On message-boundary transports (UDP, MQTT, HTTP body), the trailing `LF` is OPTIONAL: receivers on these transports MUST accept frames both with and without a trailing `LF`. On stream transports (TCP), the trailing `LF` is REQUIRED as the frame delimiter.
 
-**CMD Delivery (Non-Normative):** On connection-oriented transports (TCP), the server MAY send CMD frames at any time. On pub/sub transports (MQTT), the server MAY publish to device-specific topics. On request-response transports (HTTP, UDP), CMD frames are delivered as responses to client requests — clients SHOULD use periodic PING to poll for pending commands.
+**CMD Delivery (Non-Normative):** On connection-oriented transports (TCP), the server MAY send CMD frames at any time. On pub/sub transports (MQTT), the server MAY publish to device-specific topics. On request-response transports (HTTP, UDP), CMD frames are delivered as responses to client requests. Clients SHOULD use periodic PING to poll for pending commands.
 
 ---
 
@@ -123,7 +123,7 @@ Each TagoTiP frame addresses exactly **one device**. To send data for multiple d
 
 ### 4.1 Uplink Frames (Client → Server)
 
-> **Note:** The full frame structure described here applies to plaintext TagoTiP. When transmitted inside a TagoTiP/S envelope, a compact "headless" variant is used instead — see [TagoTiPs.md §4](TagoTiPs.md#4-headless-inner-frame).
+> **Note:** The full frame structure described here applies to plaintext TagoTiP. When transmitted inside a TagoTiP/S envelope, a compact "headless" variant is used instead. See [TagoTiPs.md §4](TagoTiPs.md#4-headless-inner-frame).
 
 Every uplink TagoTiP frame follows a pipe-delimited structure:
 
@@ -144,10 +144,10 @@ METHOD|!N|AUTH|SERIAL\n         ← PING (no body)
 | Field | Required | Description |
 |---|---|---|
 | `METHOD` | Yes | The action to perform (see §5) |
-| `!N` | No | Sequence counter — `!` prefix + decimal integer (e.g., `!42`) |
+| `!N` | No | Sequence counter: `!` prefix + decimal integer (e.g., `!42`) |
 | `AUTH` | Yes | Authorization Hash (16 hex chars, 8 bytes of SHA-256) |
 | `SERIAL` | Yes | Device serial number (target device identifier) |
-| `BODY` | Depends | Method-specific payload (see §6–§8). Omitted for PING. |
+| `BODY` | Depends | Method-specific payload (see §6-§8). Omitted for PING. |
 
 - Fields are separated by the pipe character `|` (byte `0x7C`)
 - The `!` prefix distinguishes the optional counter field from the AUTH field (hex characters `0-9`, `a-f` never start with `!`)
@@ -163,7 +163,7 @@ PING|!5|4deedd7bab8817ec|sensor-01
 
 ### 4.2 Downlink Frames (Server → Client)
 
-All server-to-client communication uses the `ACK` frame format. This is a simplified frame — no AUTH field:
+All server-to-client communication uses the `ACK` frame format. This is a simplified frame with no AUTH field:
 
 ```
 ACK|!N|STATUS|DETAIL\n     ← correlated response (echoes uplink counter)
@@ -174,11 +174,11 @@ ACK|STATUS\n
 
 | Field | Required | Description |
 |---|---|---|
-| `!N` | No | Optional — echoes the sequence counter from the uplink request. Present only when the uplink frame included `!N`. |
+| `!N` | No | Optional: echoes the sequence counter from the uplink request. Present only when the uplink frame included `!N`. |
 | `STATUS` | Yes | Result code |
 | `DETAIL` | No | Additional information |
 
-The server does not need to authenticate itself to the client. When the uplink frame includes a sequence counter (`!N`), the server echoes the same value in the ACK response (see §9.5). ACK frames without `!N` are either responses to requests that had no counter, or unsolicited server-initiated messages (e.g., CMD). This allows clients to correlate responses to requests on pipelined connections.
+The server does not need to authenticate itself to the client. When the uplink frame includes a sequence counter (`!N`), the server echoes the same value in the ACK response (see §9.5). ACK frames without `!N` are either responses to requests that had no counter, or unsolicited server-initiated messages (e.g., CMD). The echoed counter lets clients correlate responses to requests on pipelined connections.
 
 See §9 for the full ACK specification including status codes for responses and commands.
 
@@ -195,7 +195,7 @@ For passthrough payloads (`>x`, `>b`), the SERIAL field still identifies the tar
 
 ### 4.4 Escaping
 
-Escaping is supported inside **string values** (`VALCHAR`) and **metadata values** (`METAVALCHAR`). Unit strings (`UNITCHAR`) do **not** support escape sequences — they are plain text terminated by structural characters.
+Escaping is supported inside **string values** (`VALCHAR`) and **metadata values** (`METAVALCHAR`). Unit strings (`UNITCHAR`) do **not** support escape sequences: they are plain text terminated by structural characters.
 
 **Rule:** A backslash (`\`) escapes the next byte, producing the literal character. This applies to any reserved/structural character, including:
 `|`, `[`, `]`, `;`, `,`, `{`, `}`, `#`, `@`, `^`, `\`, and `n` (newline escape).
@@ -223,7 +223,7 @@ A real newline byte (`0x0A`) always terminates a frame on stream transports and 
 
 ### 4.5 Size Limits
 
-To ensure predictable memory usage on embedded clients and consistent server behavior:
+For predictable memory usage on embedded clients and consistent server behavior:
 
 - **Max plaintext frame size:** The server MUST reject any frame whose UTF-8 byte length exceeds **16,384 bytes** (excluding the optional `\n` terminator on stream transports) with `ACK|ERR|payload_too_large`.
 
@@ -287,7 +287,7 @@ See §9 for the full ACK specification.
 
 ---
 
-## 6. PUSH — Sending Data
+## 6. PUSH: Sending Data
 
 ### 6.1 Basic Structure
 
@@ -312,7 +312,7 @@ Optional body-level modifiers may appear before the variable block. They set def
 PUSH|AUTH|SERIAL|@=LOCATION @TIMESTAMP ^GROUP {METADATA} [variables]
 ```
 
-> *Spaces shown for readability only — not present in actual frames.*
+> *Spaces are shown for readability only and are not present in actual frames.*
 
 | Component | Required | Prefix | Description |
 |---|---|---|---|
@@ -338,7 +338,7 @@ The variable list inside `[]` MUST contain at least one variable. Empty blocks (
 
 Metadata blocks MUST contain at least one key-value pair. Empty metadata blocks (`{}`) MUST be rejected with `invalid_payload`.
 
-The same variable name MAY appear multiple times within a single variable block. Each occurrence is treated as a separate data point (useful for batch uploads — see §11.7).
+The same variable name MAY appear multiple times within a single variable block. Each occurrence is treated as a separate data point, which supports batch uploads (see §11.7).
 
 PUSH frames are **atomic**: if any variable in the block fails validation (malformed operator, invalid value, illegal suffix combination), the server MUST reject the entire frame with `ACK|ERR|invalid_payload`. No partial acceptance.
 
@@ -351,13 +351,13 @@ PUSH frames are **atomic**: if any variable in the block fails validation (malfo
 | `?=` | Boolean | `true` or `false` | `active?=true` |
 | `@=` | Location | `lat,lng` or `lat,lng,alt` | `position@=39.74,-104.99` |
 
-Number values MUST match the pattern `-?(0|[1-9][0-9]*)(\.[0-9]+)?` — an optional minus sign, one or more digits, and an optional decimal fraction. Scientific notation, leading zeros (except in `0` and `0.x` forms), and special values (`NaN`, `Infinity`) are not valid.
+Number values MUST match the pattern `-?(0|[1-9][0-9]*)(\.[0-9]+)?`: an optional minus sign, one or more digits, and an optional decimal fraction. Scientific notation, leading zeros (except in `0` and `0.x` forms), and special values (`NaN`, `Infinity`) are not valid.
 
 String values MUST contain at least one character. Empty values (e.g., `status=`) are not valid.
 
 Boolean values MUST be the exact lowercase strings `true` or `false`.
 
-Location coordinates follow the same numeric format as the number type. Validation of coordinate ranges (e.g., latitude −90 to 90, longitude −180 to 180) is application-level and not enforced by the protocol parser.
+Location coordinates follow the same numeric format as the number type. Validation of coordinate ranges (e.g., latitude -90 to 90, longitude -180 to 180) is application-level and not enforced by the protocol parser.
 
 #### 6.3.2 Suffixes
 
@@ -371,11 +371,11 @@ Location coordinates follow the same numeric format as the number type. Validati
 
 The `@=location` suffix attaches geographic coordinates to a variable with a non-location value type. The coordinate format is the same as the location operator value: `lat,lng` or `lat,lng,alt`. This enables sending a value and its location in a single variable.
 
-The `#unit` and `@=location` suffixes MUST NOT be used with the location operator (`@=`) — the server MUST reject the frame with `invalid_payload`. Altitude in a location triple is always in meters.
+The `#unit` and `@=location` suffixes MUST NOT be used with the location operator (`@=`). The server MUST reject the frame with `invalid_payload`. Altitude in a location triple is always in meters.
 
 Parsers disambiguate the `@=` location suffix from the `@` timestamp suffix by checking the character after `@`: if `=`, parse as location; if digit, parse as timestamp; otherwise, reject with `invalid_payload`.
 
-Metadata keys follow the same character rules as variable names (lowercase alphanumeric and underscore). Metadata keys do not support escape sequences — they are restricted to the identifier charset (`[a-z0-9_]`), which contains no structural characters. Metadata values follow the same encoding rules as string values (printable UTF-8, with escaping for structural characters).
+Metadata keys follow the same character rules as variable names (lowercase alphanumeric and underscore). Metadata keys do not support escape sequences: they are restricted to the identifier charset (`[a-z0-9_]`), which contains no structural characters. Metadata values follow the same encoding rules as string values (printable UTF-8, with escaping for structural characters).
 
 #### 6.3.3 Full Variable Form
 
@@ -411,7 +411,7 @@ Here `temp` uses its own location and timestamp, while `humidity` uses the body-
 PUSH|4deedd7bab8817ec|sensor-01|@=39.74,-104.99[speed:=10;position@=40.00,-105.50]
 ```
 
-Here `speed` inherits the body-level location `{lat: 39.74, lng: -104.99}`, but `position` uses its own value `{lat: 40.00, lng: -105.50}` — body-level `@=` does not override `@=` operator variables.
+Here `speed` inherits the body-level location `{lat: 39.74, lng: -104.99}`, but `position` uses its own value `{lat: 40.00, lng: -105.50}`. Body-level `@=` does not override `@=` operator variables.
 
 For metadata, variable-level **merges** with body-level (variable wins on key conflicts):
 
@@ -428,8 +428,8 @@ When a device needs to send raw data instead of structured variables, the BODY b
 
 | Prefix | Encoding | Delivered As | Example |
 |---|---|---|---|
-| `>x` | Hexadecimal | Raw buffer (bytes) — hex is decoded | `PUSH\|AUTH\|SERIAL\|>xDEADBEEF01020304` |
-| `>b` | Base64 | Text string (base64) — delivered as-is, parser decodes if needed | `PUSH\|AUTH\|SERIAL\|>b3q2+7wECAwQ=` |
+| `>x` | Hexadecimal | Raw buffer (bytes): hex is decoded | `PUSH\|AUTH\|SERIAL\|>xDEADBEEF01020304` |
+| `>b` | Base64 | Text string (base64): delivered as-is, parser decodes if needed | `PUSH\|AUTH\|SERIAL\|>b3q2+7wECAwQ=` |
 
 The `>` prefix signals **passthrough mode**: the server authenticates the frame (validates AUTH), identifies the target device (by SERIAL), but does NOT parse the BODY as variables. The data is delivered to the device's payload parser:
 
@@ -449,7 +449,7 @@ The effective maximum passthrough data size depends on the frame budget remainin
 
 ---
 
-## 7. PULL — Retrieving Data
+## 7. PULL: Retrieving Data
 
 ### 7.1 Request
 
@@ -467,7 +467,7 @@ The server MUST return the found variables in bracket-wrapped standard syntax:
 ACK|OK|[VARIABLE OPERATOR VALUE #UNIT @=LOCATION @TIMESTAMP ^GROUP {METADATA};...]
 ```
 
-The response always uses bracket-wrapped variable syntax, matching the PUSH body format. Only found variables are included — variables that do not exist or have no stored values are silently omitted. If **none** of the requested variables are found, the server MUST respond with `ACK|ERR|variable_not_found`.
+The response always uses bracket-wrapped variable syntax, matching the PUSH body format. Only found variables are included: variables that do not exist or have no stored values are silently omitted. If **none** of the requested variables are found, the server MUST respond with `ACK|ERR|variable_not_found`.
 
 The server does not echo the serial in ACK responses (see §9).
 
@@ -484,11 +484,11 @@ Examples:
 ← ACK|OK|[speed:=10#km/h@=39.74,-104.99@1694567890000]
 ```
 
-In the second example, `pressure` was requested but not found — it is silently omitted from the response. The third example shows a response with the `@=` location suffix attached to a numeric value.
+In the second example, `pressure` was requested but not found, so it is silently omitted from the response. The third example shows a response with the `@=` location suffix attached to a numeric value.
 
 ---
 
-## 8. PING — Keepalive
+## 8. PING: Keepalive
 
 ### 8.1 Request
 
@@ -506,7 +506,7 @@ ACK|PONG
 
 ---
 
-## 9. ACK — Server Response
+## 9. ACK: Server Response
 
 All downlink communication uses the `ACK` frame:
 
@@ -531,8 +531,8 @@ When `!N` is present, it appears between `ACK` and `STATUS` (e.g., `ACK|!1|OK|3`
 
 | Status | Meaning | Detail |
 |---|---|---|
-| `OK` | Operation succeeded | For PUSH: decimal count of data points added to the device bucket. This applies to both structured payloads and passthrough payloads (`>x`, `>b`) — in the latter case, the count reflects data points produced by the payload parser. For PULL: bracket-wrapped variable list in standard syntax (see §7.2). `ACK|OK|0` is valid and means the frame was accepted but produced no data points (e.g., all variables were filtered by the payload parser). |
-| `PONG` | Response to PING | — |
+| `OK` | Operation succeeded | For PUSH: decimal count of data points added to the device bucket. This applies to both structured payloads and passthrough payloads (`>x`, `>b`). For passthrough, the count reflects data points produced by the payload parser. For PULL: bracket-wrapped variable list in standard syntax (see §7.2). `ACK|OK|0` is valid and means the frame was accepted but produced no data points (e.g., all variables were filtered by the payload parser). |
+| `PONG` | Response to PING | (none) |
 | `CMD` | Server-initiated command | Command string (application-defined) |
 | `ERR` | Operation failed | Error code |
 
@@ -587,14 +587,14 @@ ACK|!7|ERR|invalid_payload
 
 ### 9.5 Response Correlation
 
-When the uplink frame includes a sequence counter (`!N`), the server MUST echo the same `!N` value in the ACK response. This allows clients to correlate responses to their originating requests on pipelined connections.
+When the uplink frame includes a sequence counter (`!N`), the server MUST echo the same `!N` value in the ACK response. Clients match the echoed value to correlate responses to their originating requests on pipelined connections.
 
 **Rules:**
 
 - The server MUST echo `!N` when the uplink included it
 - The server MUST NOT include `!N` in unsolicited messages (CMD pushed without a request)
 - The client uses presence/absence of `!N` to distinguish solicited responses from unsolicited CMDs
-- The `!` prefix disambiguates the counter from STATUS — status codes are alphabetic (`OK`, `PONG`, `CMD`, `ERR`) and never start with `!`
+- The `!` prefix disambiguates the counter from STATUS: status codes are alphabetic (`OK`, `PONG`, `CMD`, `ERR`) and never start with `!`
 
 ---
 
@@ -602,11 +602,11 @@ When the uplink frame includes a sequence counter (`!N`), the server MUST echo t
 
 TagoTiP supports an optional, monotonically increasing sequence counter. When used, the counter provides:
 
-- **Replay protection** — the server rejects messages with a counter value it has already seen
-- **Message ordering** — the server can detect out-of-order delivery
-- **Deduplication** — the server can discard duplicate messages
+- **Replay protection**: the server rejects messages with a counter value it has already seen
+- **Message ordering**: the server can detect out-of-order delivery
+- **Deduplication**: the server can discard duplicate messages
 
-> The counter also serves as a nonce component in TagoTiP/S. See [TagoTiPs.md](TagoTiPs.md).
+> The counter is also a nonce component in TagoTiP/S. See [TagoTiPs.md](TagoTiPs.md).
 
 ### 10.1 Counter Rules
 
@@ -771,8 +771,8 @@ PING|4deedd7bab8817ec|sensor-01
 
 1. Read the message (delimited by transport: `\n` for TCP, end of datagram for UDP, end of HTTP body, etc.)
 2. Split by `|` into fields (respecting `\|` escape sequences)
-3. If field 1 is `ACK`, check if field 2 starts with `!` — if yes, parse as `[ACK, SEQ, STATUS[, DETAIL]]`; otherwise parse as `[ACK, STATUS[, DETAIL]]`
-4. Otherwise, check if field 2 starts with `!` — if yes, parse as `[METHOD, SEQ, AUTH, SERIAL[, BODY]]`; otherwise parse as `[METHOD, AUTH, SERIAL[, BODY]]`
+3. If field 1 is `ACK`, check if field 2 starts with `!`: if yes, parse as `[ACK, SEQ, STATUS[, DETAIL]]`; otherwise parse as `[ACK, STATUS[, DETAIL]]`
+4. Otherwise, check if field 2 starts with `!`: if yes, parse as `[METHOD, SEQ, AUTH, SERIAL[, BODY]]`; otherwise parse as `[METHOD, AUTH, SERIAL[, BODY]]`
 5. Validate METHOD against known methods
 6. If SEQ is present in an uplink frame, parse the decimal integer after `!` and validate against the last-seen counter (when counter enforcement is enabled; see §10.2)
 7. Route to method-specific parser
@@ -792,7 +792,7 @@ For ACK with `!N`: minimum 3 fields (`ACK|!N|STATUS`), maximum 4 (`ACK|!N|STATUS
 ### 12.2 PUSH Body Parsing
 
 1. If BODY starts with `>`, this is a **passthrough**: read encoding flag (`x` or `b`), deliver the data to the payload parser without further parsing
-2. Otherwise, scan for `[` — everything before `[` is body-level modifiers, everything inside `[]` is variables
+2. Otherwise, scan for `[`: everything before `[` is body-level modifiers, everything inside `[]` is variables
 3. Parse body-level modifiers for optional `@=LOCATION`, `@TIMESTAMP`, `^GROUP`, `{METADATA}` (MUST appear in this order when present; reject duplicates with `invalid_payload`). After `@`, check: if `=` follows → location; if digit follows → timestamp; otherwise reject with `invalid_payload`.
 4. Split variable content by `;` into individual variables (respecting `\;` escape)
 5. For each variable, parse left-to-right (single pass, no backtracking):
@@ -855,7 +855,7 @@ Envelope: 1 (flags) + 4 (counter) + 8 (auth hash) + 8 (device hash) + 81 (cipher
 
 | Format | Approximate Size | vs. HTTP/JSON |
 |---|---|---|
-| HTTP/JSON | ~487 bytes | — |
+| HTTP/JSON | ~487 bytes | baseline |
 | TagoTiP | ~103 bytes | ~4.7× smaller |
 | TagoTiP/S | ~110 bytes | ~4.4× smaller |
 
@@ -928,7 +928,7 @@ pull-response   = "[" var-list "]"                          ; Bracket-wrapped, s
 ; === Downlink Frames (Server → Client) ===
 
 ack-frame       = "ACK" "|" [seq "|"] ack-status ["|" ack-detail] LF
-                                                        ; seq starts with "!" — unambiguous vs. ack-status (alphabetic)
+                                                        ; seq starts with "!", unambiguous vs. ack-status (alphabetic)
 ack-status      = "OK" / "PONG" / "CMD" / "ERR"
 ack-detail      = 1*DIGIT                              ; PUSH OK: count of accepted data points
                 / pull-response                            ; PULL OK: bracket-wrapped variable list
@@ -950,7 +950,7 @@ METAVALCHAR     = %x20-22 / %x24-2B / %x2D-3A / %x3C-3F / %x41-5A / %x5F-60 / %x
                                                         ; like VALCHAR but also excludes unescaped ","
 UNITCHAR        = %x20-22 / %x24-3A / %x3C-3F / %x41-5A / %x5F-60 / %x61-7A / %x7E
                                                         ; printable ASCII excluding # ; @ [ \ ] ^ { | }
-                                                        ; No escape sequences — units are plain text
+                                                        ; No escape sequences: units are plain text
 DETAILCHAR      = %x21-7B / %x7D-7E                    ; VCHAR excluding "|"
 BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
                                                         ; Padding position enforced by decoder
@@ -999,7 +999,7 @@ BASE64CHAR      = ALPHA / DIGIT / "+" / "/" / "="
 
 This specification is **open source**, published under the [Apache License 2.0](LICENSE).
 
-Anyone is free to implement TagoTiP — clients, servers, libraries, gateways, or any other component — for any purpose, including commercial use, without requiring permission from TagoIO Inc. The Apache 2.0 license includes an express patent grant to all implementers.
+Anyone is free to implement TagoTiP (clients, servers, libraries, gateways, or any other component) for any purpose, including commercial use, without requiring permission from TagoIO Inc. The Apache 2.0 license includes an express patent grant to all implementers.
 
 The names "TagoTiP", "TagoTiP/S", and "TagoIO" are trademarks of TagoIO Inc. See [NOTICE](NOTICE) for trademark details.
 
